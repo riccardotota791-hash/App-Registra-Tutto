@@ -27,7 +27,7 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 const STORE = 'quotidianita_v1';
 function defaultState() {
   return { name: 'Eroe', skin: null, goals: [], tasks: [], log: {}, seen: {}, maxLevel: 1, lastSeen: null,
-    settings: { notif: false, evening: '21:00' }, fired: {} };
+    settings: { notif: false, evening: '21:00', voiceReply: true }, fired: {} };
 }
 function load() {
   try {
@@ -36,7 +36,7 @@ function load() {
   } catch (e) {}
   return defaultState();
 }
-function save() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }
+function save() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} scheduleNativeSync(); }
 let S = load();
 
 /* ============ Regole di gioco ============ */
@@ -194,7 +194,7 @@ const TABS = [
   { id: 'calendario', icon: '📅', label: 'Calendario' },
   { id: 'obiettivi', icon: '🎯', label: 'Obiettivi' },
   { id: 'premi', icon: '🏆', label: 'Premi' },
-  { id: 'eroe', icon: '🧙', label: 'Personaggio' },
+  { id: 'eroe', icon: '🧙', label: 'Eroe' },
 ];
 
 function render() {
@@ -222,8 +222,11 @@ function renderHero() {
 }
 
 function renderTabs() {
-  document.getElementById('tabs').innerHTML = TABS.map(t =>
-    `<button class="${t.id === tab ? 'on' : ''}" onclick="go('${t.id}')"><span>${t.icon}</span>${t.label}</button>`).join('');
+  const btns = TABS.map(t =>
+    `<button class="${t.id === tab ? 'on' : ''}" onclick="go('${t.id}')"><span>${t.icon}</span>${t.label}</button>`);
+  // al centro il pulsante dell'assistente vocale
+  btns.splice(2, 0, `<button class="mictab" id="fab" onclick="openVoice(true)" aria-label="Assistente vocale"><span>🎤</span>Voce</button>`);
+  document.getElementById('tabs').innerHTML = btns.join('');
 }
 function go(t) { tab = t; closeModal(); render(); window.scrollTo(0, 0); }
 
@@ -595,21 +598,29 @@ function viewEroe() {
     </div>
     <h2>🎭 Aspetto</h2>
     <div class="skins">${skins.map(s => `<button class="skin ${s.skin === cur ? 'sel' : ''} ${s.ok ? '' : 'locked'}" ${s.ok ? `onclick="pickSkin('${s.skin}')"` : 'disabled'} title="${esc(s.label)}">${s.skin}<small>${esc(s.label)}</small></button>`).join('')}</div>
-    ${!standalone ? `<h2>📱 Installa sul telefono</h2>
+    ${!standalone && !isNative ? `<h2>📱 Installa sul telefono</h2>
     <div class="card">
       ${installEvt ? `<button class="btn full" onclick="installApp()">Installa l'app</button>`
         : ios ? `<p class="note" style="margin:0">Su iPhone: apri questa pagina con <b>Safari</b>, tocca <b>Condividi</b> ⬆️ e poi <b>"Aggiungi alla schermata Home"</b>. Le notifiche su iPhone funzionano solo dall'app installata.</p>`
         : `<p class="note" style="margin:0">Dal menu del browser (⋮) scegli <b>"Installa app"</b> o <b>"Aggiungi a schermata Home"</b>.</p>`}
+      ${/android/i.test(navigator.userAgent) ? `<a class="btn ghost full" style="display:grid;place-items:center;margin-top:10px;text-decoration:none" href="${APK_URL}" target="_blank" rel="noopener">⬇️ Scarica l'app Android (APK)</a>
+        <p class="note" style="margin:6px 0 0">Con l'app Android i promemoria arrivano anche ad app chiusa.</p>` : ''}
     </div>` : ''}
+    <h2>🎤 Assistente vocale</h2>
+    <div class="card">
+      <label class="switch"><span>Risposte a voce</span><input type="checkbox" ${S.settings.voiceReply !== false ? 'checked' : ''} onchange="S.settings.voiceReply=this.checked;save()"></label>
+      <button class="btn ghost full" onclick="openVoice(false)">Apri l'assistente e vedi gli esempi</button>
+    </div>
     <h2>🔔 Notifiche</h2>
     <div class="card">
-      ${perm === 'unsupported' ? `<p class="note" style="margin:0 0 8px">Questo browser non supporta le notifiche${ios ? ': installa prima l\'app sulla schermata Home' : ''}.</p>`
+      ${isNative ? `<label class="switch"><span>Promemoria attivi</span><input type="checkbox" ${S.settings.notif ? 'checked' : ''} onchange="setNotif(this.checked)"></label>`
+        : perm === 'unsupported' ? `<p class="note" style="margin:0 0 8px">Questo browser non supporta le notifiche${ios ? ': installa prima l\'app sulla schermata Home' : ''}.</p>`
         : perm === 'denied' ? `<p class="note" style="margin:0 0 8px">Le notifiche sono bloccate: riattivale dalle impostazioni del telefono/browser.</p>`
         : `<label class="switch"><span>Promemoria attivi</span><input type="checkbox" ${S.settings.notif && perm === 'granted' ? 'checked' : ''} onchange="setNotif(this.checked)"></label>`}
       <div class="field" style="margin-top:6px"><label for="f-evening">🌙 Promemoria di fine giornata (se manca qualcosa)</label>
         <input id="f-evening" type="time" value="${S.settings.evening || ''}" onchange="S.settings.evening=this.value;save()"></div>
       <button class="btn ghost full" onclick="testNotif()">Prova una notifica</button>
-      <p class="note" style="margin:10px 0 0">Ogni obiettivo fisso e ogni cosa da fare può avere la sua ora di promemoria. Le notifiche arrivano mentre l'app è aperta o in sottofondo.</p>
+      <p class="note" style="margin:10px 0 0">Ogni obiettivo fisso e ogni cosa da fare può avere la sua ora di promemoria. ${isNative ? 'Arrivano anche ad app chiusa.' : 'Le notifiche arrivano mentre l\'app è aperta o in sottofondo.'}</p>
     </div>
     <h2>⚙️ Impostazioni</h2>
     <div class="card">
@@ -651,15 +662,30 @@ function resetAll() {
   S = defaultState(); S.lastSeen = todayKey(); save(); render();
 }
 
+/* ============ App nativa Android (Capacitor) ============ */
+const Cap = window.Capacitor;
+const isNative = !!(Cap && Cap.isNativePlatform && Cap.isNativePlatform());
+// capacitor.js (aggiunto solo nella build Android) fornisce registerPlugin
+const LN = isNative ? Cap.registerPlugin('LocalNotifications') : null;
+const APK_URL = 'https://github.com/riccardotota791-hash/App-Registra-Tutto/releases/latest';
+
 /* ============ Installazione (PWA) ============ */
 let installEvt = null;
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; if (tab === 'eroe') render(); });
 function installApp() { if (installEvt) { installEvt.prompt(); installEvt = null; render(); } }
-if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
+if (!isNative && 'serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => {});
 
 /* ============ Notifiche e promemoria ============ */
 async function setNotif(on) {
-  if (on && 'Notification' in window && Notification.permission !== 'granted') {
+  if (on && LN) {
+    const p = await LN.requestPermissions();
+    on = p.display === 'granted';
+    if (on && LN.checkExactNotificationSetting) {
+      const ex = await LN.checkExactNotificationSetting().catch(() => null);
+      if (ex && ex.exact_alarm !== 'granted' && confirm('Per ricevere i promemoria all\'ora esatta, consenti "Sveglie e promemoria" nella prossima schermata.'))
+        await LN.changeExactNotificationSetting().catch(() => {});
+    }
+  } else if (on && 'Notification' in window && Notification.permission !== 'granted') {
     const p = await Notification.requestPermission();
     on = p === 'granted';
   }
@@ -667,12 +693,13 @@ async function setNotif(on) {
   if (on) toast('🔔', 'Promemoria attivi', 'Ti avviserò alle ore che hai scelto');
 }
 function askNotifOnce() {
-  if (S.settings.notif || S.settings.asked || !('Notification' in window) || Notification.permission === 'denied') return;
+  if (S.settings.notif || S.settings.asked || (!LN && (!('Notification' in window) || Notification.permission === 'denied'))) return;
   S.settings.asked = true; save();
   setTimeout(() => { if (confirm('Vuoi ricevere le notifiche per i promemoria?')) setNotif(true); }, 300);
 }
 async function notify(title, body, tag) {
   toast('🔔', title, body);
+  if (isNative) return; // nell'app Android le notifiche sono programmate dal sistema (scheduleNativeSync)
   if (!S.settings.notif || !('Notification' in window) || Notification.permission !== 'granted') return;
   const opts = { body, tag, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', renotify: true };
   try {
@@ -682,6 +709,12 @@ async function notify(title, body, tag) {
   try { new Notification(title, opts); } catch (e) {}
 }
 function testNotif() {
+  if (LN) {
+    const go = () => LN.schedule({ notifications: [{ id: 999999, title: 'Funziona! 🎉', body: 'Così arriveranno i tuoi promemoria',
+      schedule: { at: new Date(Date.now() + 3000), allowWhileIdle: true } }] }).then(() => toast('🔔', 'Notifica tra 3 secondi', 'Puoi anche chiudere l\'app'));
+    if (!S.settings.notif) setNotif(true).then(() => S.settings.notif && go()); else go();
+    return;
+  }
   if (!S.settings.notif) { setNotif(true).then(() => notify('Funziona! 🎉', 'Così arriveranno i tuoi promemoria', 'test')); return; }
   notify('Funziona! 🎉', 'Così arriveranno i tuoi promemoria', 'test');
 }
@@ -717,6 +750,46 @@ function checkReminders() {
   for (const r of list) { S.fired[r.key] = 1; notify(r.title, r.body, r.id); }
   save();
 }
+/* Nell'app Android i promemoria dei prossimi 7 giorni vengono programmati nel sistema,
+   così arrivano anche ad app chiusa. Si riprogrammano a ogni modifica. */
+let nativeSyncTimer = null;
+function scheduleNativeSync() {
+  if (!LN) return;
+  clearTimeout(nativeSyncTimer);
+  nativeSyncTimer = setTimeout(syncNativeReminders, 800);
+}
+const notifId = str => { let h = 7; for (const c of str) h = (h * 31 + c.charCodeAt(0)) | 0; return Math.abs(h) % 2000000000 + 1; };
+async function syncNativeReminders() {
+  try {
+    const pending = await LN.getPending();
+    if (pending.notifications.length) await LN.cancel({ notifications: pending.notifications.map(n => ({ id: n.id })) });
+    if (!S.settings.notif) return;
+    const today = todayKey(), now = Date.now(), list = [];
+    const at = (d, hhmm) => { const [h, m] = hhmm.split(':').map(Number); const x = parse(d); x.setHours(h, m, 0, 0); return x; };
+    const add = (id, d, hhmm, title, body) => { const when = at(d, hhmm); if (when.getTime() > now) list.push({ id: notifId(d + id), title, body, schedule: { at: when, allowWhileIdle: true }, extra: { tab: 'oggi' } }); };
+    const Rn = compute();
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(today, i);
+      for (const g of S.goals) {
+        if (!g.remind || !isActive(g, d)) continue;
+        if (i === 0) {
+          const prog = g.freq === 'daily' ? val(d, g) : (Rn.sums[g.id + '|' + periodKey(g, d)] || 0);
+          if (prog >= g.target) continue;
+        }
+        add('g' + g.id, d, g.remind, `${g.icon || '⭐'} ${g.name}`,
+          g.target === 1 ? 'È il momento! Spuntalo per guadagnare XP.' : `Obiettivo: ${g.target}${g.unit ? ' ' + g.unit : ''}. Forza! (+${g.xp} XP)`);
+      }
+      for (const t of S.tasks) if (t.date === d && t.time && !t.done) add('t' + t.id, d, t.time, `${t.icon || '📝'} ${t.title}`, `Da fare oggi · +${t.xp} XP`);
+      if (S.settings.evening) {
+        const day = Rn.days[d];
+        if (!(i === 0 && day && day.total && day.done === day.total))
+          add('evening', d, S.settings.evening, '🌙 La giornata sta finendo', `Hai completato tutto? Una giornata perfetta vale +${PERFECT_DAY_BONUS} XP`);
+      }
+    }
+    if (list.length) await LN.schedule({ notifications: list });
+  } catch (e) { console.warn('promemoria', e); }
+}
+
 function pruneFired() {
   const today = todayKey();
   for (const k in S.fired) if (k.slice(0, 10) < today) delete S.fired[k];
@@ -797,6 +870,9 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) { ti
 // apertura da una notifica o da una scorciatoia: ?tab=calendario
 const qsTab = new URLSearchParams(location.search).get('tab');
 if (TABS.some(t => t.id === qsTab)) tab = qsTab;
+
+if (LN) LN.addListener('localNotificationActionPerformed', () => { tab = 'oggi'; viewDay = todayKey(); render(); });
+scheduleNativeSync();
 
 pruneFired();
 render();

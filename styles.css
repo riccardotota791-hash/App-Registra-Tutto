@@ -181,3 +181,14 @@ button{touch-action:manipulation}
 .switch{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0}
 .switch input{width:22px;height:22px;accent-color:var(--accent)}
 .note{font-size:12.5px;color:var(--muted)}
+
+/* ---- Assistente vocale ---- */
+.mictab{flex:none!important;width:70px}
+.mictab span{width:56px;height:56px;border-radius:50%;margin-top:-26px;display:grid;place-items:center;color:#fff;font-size:26px!important;
+  background:linear-gradient(135deg,var(--accent),#3a1f8f);box-shadow:0 6px 16px rgba(75,47,201,.45);border:3px solid var(--surface)}
+.mictab.on span,.vmic.on{animation:pulse 1.1s ease-in-out infinite;background:linear-gradient(135deg,#ff5d73,#c81d4e)}
+.vmic{width:96px;height:96px;border-radius:50%;border:0;margin:14px auto 10px;display:grid;place-items:center;font-size:42px;color:#fff;
+  background:linear-gradient(135deg,var(--accent),#3a1f8f);box-shadow:0 8px 24px rgba(75,47,201,.4)}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,93,115,.55)}50%{box-shadow:0 0 0 16px rgba(255,93,115,0)}}
+.vres{margin-top:10px;text-align:left;font-size:14.5px}
+.vres.ok{border-color:var(--ok);background:var(--ok-bg)}

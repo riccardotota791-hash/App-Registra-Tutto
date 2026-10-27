@@ -1,0 +1,13 @@
+{
+  "appId": "com.riccardotota.quotidianita",
+  "appName": "Quotidianità",
+  "webDir": "www",
+  "android": {
+    "backgroundColor": "#120e20"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "iconColor": "#6d4aff"
+    }
+  }
+}

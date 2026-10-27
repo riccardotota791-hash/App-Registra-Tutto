@@ -1,0 +1,67 @@
+# Costruisce l'app Android (APK) a ogni modifica e la pubblica nelle Release della repository.
+name: App Android
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Test assistente vocale
+        run: npm ci && npm test
+
+      - name: Prepara progetto Android
+        run: npm run android:prepare
+
+      - name: Numero di versione
+        run: |
+          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/" android/app/build.gradle
+          sed -i "s/versionName \"1.0\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
+
+      - name: Compila APK
+        run: |
+          # stessa chiave a ogni build: così l'app si aggiorna senza disinstallarla (e senza perdere i dati)
+          mkdir -p ~/.android && cp ci/debug.keystore ~/.android/debug.keystore
+          cd android && ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk ../Quotidianita.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Quotidianita-apk
+          path: Quotidianita.apk
+
+      - name: Pubblica la Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Quotidianità 1.0.${{ github.run_number }}
+          make_latest: true
+          files: Quotidianita.apk
+          body: |
+            📱 **Per installare su Android:** scarica `Quotidianita.apk` qui sotto dal telefono e aprilo.
+            La prima volta Android chiede di consentire l'installazione da questa fonte (browser o File).
+
+            Modifiche: ${{ github.event.head_commit.message }}

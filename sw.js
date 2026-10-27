@@ -1,7 +1,7 @@
 // Service worker: rende l'app installabile e utilizzabile offline,
 // e apre l'app quando si tocca una notifica.
-const CACHE = 'quotidianita-v2';
-const FILES = ['./', 'index.html', 'styles.css', 'app.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'];
+const CACHE = 'quotidianita-v3';
+const FILES = ['./', 'index.html', 'styles.css', 'app.js', 'voice.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));

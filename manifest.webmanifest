@@ -16,6 +16,7 @@
     { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
   ],
   "shortcuts": [
+    { "name": "Comando vocale", "short_name": "Voce", "url": "./?voice=1" },
     { "name": "Calendario", "url": "./?tab=calendario" },
     { "name": "Obiettivi", "url": "./?tab=obiettivi" }
   ]
